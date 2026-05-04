@@ -1,175 +1,60 @@
 const CHUNK_SIZE = 16;
-const CHUNK_HEIGHT = 32;
-const RENDER_DISTANCE = 3;
+const HEIGHT = 32;
+const DIST = 4;
 
-const chunks = {};
-let sceneRef = null;
+let chunks = new Map();
+let queue = [];
 
-function initWorld(scene) {
-  sceneRef = scene;
+function key(x,z){ return x+","+z; }
+
+function getHeight(x,z){
+    return Math.floor((noise.simplex2(x/20,z/20)+1)*5+5);
 }
 
-function getBlock(wx, y, wz) {
-  const h = Math.floor(noise(wx * 0.03, wz * 0.03) * 6);
+function gen(cx,cz){
+    const geo = new THREE.BoxGeometry(1,1,1);
+    const mat = new THREE.MeshBasicMaterial({color:0x55aa55});
+    const mesh = new THREE.InstancedMesh(geo,mat,2000);
 
-  if (y > h) return 0;
-  if (y === h) return 1;
-  return 2;
-}
+    let i=0;
+    const m = new THREE.Matrix4();
 
-function generateChunkData(cx, cz) {
-  const data = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE * CHUNK_HEIGHT);
+    for(let x=0;x<CHUNK_SIZE;x++){
+        for(let z=0;z<CHUNK_SIZE;z++){
+            let h = getHeight(cx*16+x,cz*16+z);
 
-  for (let x = 0; x < CHUNK_SIZE; x++) {
-    for (let z = 0; z < CHUNK_SIZE; z++) {
-      for (let y = 0; y < CHUNK_HEIGHT; y++) {
-        const wx = cx * CHUNK_SIZE + x;
-        const wz = cz * CHUNK_SIZE + z;
-
-        const i = x + z * CHUNK_SIZE + y * CHUNK_SIZE * CHUNK_SIZE;
-        data[i] = getBlock(wx, y, wz);
-      }
-    }
-  }
-
-  return data;
-}
-
-function buildChunkMesh(cx, cz, data) {
-  const positions = [];
-  const normals = [];
-  const colors = [];
-
-  const dirs = [
-    [1,0,0],[-1,0,0],
-    [0,1,0],[0,-1,0],
-    [0,0,1],[0,0,-1]
-  ];
-
-  function get(x,y,z){
-    if(x<0||z<0||x>=CHUNK_SIZE||z>=CHUNK_SIZE||y<0||y>=CHUNK_HEIGHT) return 0;
-    return data[x + z*CHUNK_SIZE + y*CHUNK_SIZE*CHUNK_SIZE];
-  }
-
-  const faces = [
-    [[1,0,0],[1,1,0],[1,1,1],[1,0,1]],
-    [[0,0,1],[0,1,1],[0,1,0],[0,0,0]],
-    [[0,1,1],[1,1,1],[1,1,0],[0,1,0]],
-    [[0,0,0],[1,0,0],[1,0,1],[0,0,1]],
-    [[1,0,1],[1,1,1],[0,1,1],[0,0,1]],
-    [[0,0,0],[0,1,0],[1,1,0],[1,0,0]]
-  ];
-
-  function addFace(x,y,z,dir,block){
-    const verts = faces[dir];
-    const normal = dirs[dir];
-
-    const color = block===1 ? [0.3,0.8,0.3] : [0.5,0.25,0.1];
-    const idx = [0,1,2, 0,2,3];
-
-    for(let i of idx){
-      const v = verts[i];
-
-      positions.push(x+v[0], y+v[1], z+v[2]);
-      normals.push(...normal);
-      colors.push(...color);
-    }
-  }
-
-  for(let x=0;x<CHUNK_SIZE;x++){
-    for(let y=0;y<CHUNK_HEIGHT;y++){
-      for(let z=0;z<CHUNK_SIZE;z++){
-
-        const block = get(x,y,z);
-        if(block===0) continue;
-
-        const wx = cx*CHUNK_SIZE + x;
-        const wz = cz*CHUNK_SIZE + z;
-
-        for(let d=0;d<6;d++){
-          const [dx,dy,dz] = dirs[d];
-          if(get(x+dx,y+dy,z+dz)!==0) continue;
-
-          addFace(wx,y,wz,d,block);
+            for(let y=0;y<h;y++){
+                m.setPosition(cx*16+x,y,cz*16+z);
+                mesh.setMatrixAt(i++,m);
+            }
         }
-      }
     }
-  }
 
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions,3));
-  geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals,3));
-  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors,3));
+    mesh.count = i;
+    scene.add(mesh);
 
-  const mat = new THREE.MeshLambertMaterial({ vertexColors:true });
-
-  return new THREE.Mesh(geo, mat);
-}
-
-function createChunk(cx,cz){
-  const key = `${cx},${cz}`;
-  if(chunks[key]) return;
-
-  const data = generateChunkData(cx,cz);
-  const mesh = buildChunkMesh(cx,cz,data);
-
-  sceneRef.add(mesh);
-  chunks[key] = { mesh, data };
-}
-
-function removeChunk(cx,cz){
-  const key = `${cx},${cz}`;
-  const c = chunks[key];
-  if(!c) return;
-
-  sceneRef.remove(c.mesh);
-  c.mesh.geometry.dispose();
-  c.mesh.material.dispose();
-  delete chunks[key];
+    return mesh;
 }
 
 function updateWorld(player){
-  const pcx = Math.floor(player.position.x / CHUNK_SIZE);
-  const pcz = Math.floor(player.position.z / CHUNK_SIZE);
+    let cx = Math.floor(player.x/CHUNK_SIZE);
+    let cz = Math.floor(player.z/CHUNK_SIZE);
 
-  const needed = new Set();
+    for(let x=-DIST;x<=DIST;x++){
+        for(let z=-DIST;z<=DIST;z++){
+            let k = key(cx+x,cz+z);
 
-  for(let x=-RENDER_DISTANCE;x<=RENDER_DISTANCE;x++){
-    for(let z=-RENDER_DISTANCE;z<=RENDER_DISTANCE;z++){
-      const cx = pcx + x;
-      const cz = pcz + z;
-      const key = `${cx},${cz}`;
-
-      needed.add(key);
-      if(!chunks[key]) createChunk(cx,cz);
+            if(!chunks.has(k)){
+                chunks.set(k,"loading");
+                queue.push({x:cx+x,z:cz+z});
+            }
+        }
     }
-  }
 
-  for(let key in chunks){
-    if(!needed.has(key)){
-      const [cx,cz] = key.split(',').map(Number);
-      removeChunk(cx,cz);
+    for(let i=0;i<2;i++){
+        let job = queue.shift();
+        if(!job) break;
+
+        chunks.set(key(job.x,job.z), gen(job.x,job.z));
     }
-  }
-}
-
-// ===== PLACE BLOCK =====
-function placeBlock(x,y,z,type){
-  const cx = Math.floor(x / CHUNK_SIZE);
-  const cz = Math.floor(z / CHUNK_SIZE);
-
-  const chunk = chunks[`${cx},${cz}`];
-  if(!chunk) return;
-
-  const lx = x - cx*CHUNK_SIZE;
-  const lz = z - cz*CHUNK_SIZE;
-
-  const i = lx + lz*CHUNK_SIZE + y*CHUNK_SIZE*CHUNK_SIZE;
-  chunk.data[i] = type;
-
-  sceneRef.remove(chunk.mesh);
-  chunk.mesh.geometry.dispose();
-
-  chunk.mesh = buildChunkMesh(cx,cz,chunk.data);
-  sceneRef.add(chunk.mesh);
 }
