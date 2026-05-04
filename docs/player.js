@@ -1,30 +1,24 @@
-let player = {
-    x:0,y:10,z:0,
-    vx:0,vy:0,vz:0
-};
+const speed = 0.2;
+const keys = {};
 
-let keys = {};
-let creative = true;
+window.addEventListener("keydown", e => keys[e.key] = true);
+window.addEventListener("keyup", e => keys[e.key] = false);
 
-document.addEventListener("keydown",e=>keys[e.code]=true);
-document.addEventListener("keyup",e=>keys[e.code]=false);
-
-function updatePlayer(dt){
-
-    let speed = 10;
-
-    if(keys["KeyW"]) player.z -= speed*dt;
-    if(keys["KeyS"]) player.z += speed*dt;
-    if(keys["KeyA"]) player.x -= speed*dt;
-    if(keys["KeyD"]) player.x += speed*dt;
-
-    if(creative){
-        if(keys["Space"]) player.y += speed*dt;
-        if(keys["ShiftLeft"]) player.y -= speed*dt;
-    } else {
-        player.vy -= 20*dt;
-        player.y += player.vy*dt;
-    }
-
-    camera.position.set(player.x,player.y,player.z);
+// ===== MOVE =====
+function updatePlayer() {
+  if (keys["w"]) camera.position.z -= speed;
+  if (keys["s"]) camera.position.z += speed;
+  if (keys["a"]) camera.position.x -= speed;
+  if (keys["d"]) camera.position.x += speed;
 }
+
+setInterval(updatePlayer, 16);
+
+// ===== BREAK BLOCK =====
+window.addEventListener("mousedown", () => {
+  const x = Math.floor(camera.position.x);
+  const y = Math.floor(camera.position.y - 1);
+  const z = Math.floor(camera.position.z);
+
+  world.breakBlock(x, y, z);
+});
