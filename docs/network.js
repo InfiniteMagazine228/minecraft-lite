@@ -1,15 +1,57 @@
-try {
-  const socket = new WebSocket("ws://localhost:3000");
+let socket = null;
+let isConnected = false;
+let messageQueue = [];
 
-  socket.onmessage = (e) => {
-    const msg = JSON.parse(e.data);
-    if (window.world) {
-      world.applyNetworkUpdate(msg);
+// ===== CONNECT =====
+function connect() {
+  socket = new WebSocket("ws://localhost:3000");
+
+  socket.onopen = () => {
+    console.log("✅ Connected to server");
+    isConnected = true;
+
+    // gửi queue
+    while (messageQueue.length > 0) {
+      socket.send(messageQueue.shift());
     }
   };
 
-  window.socket = socket;
+  socket.onclose = () => {
+    console.warn("❌ Disconnected. Reconnecting...");
+    isConnected = false;
 
-} catch {
-  console.log("Offline mode");
+    setTimeout(connect, 2000); // auto reconnect
+  };
+
+  socket.onerror = (e) => {
+    console.error("WebSocket error", e);
+  };
+
+  socket.onmessage = (msg) => {
+    const data = JSON.parse(msg.data);
+
+    if (data.type === "break") {
+      if (window.world) {
+        world.applyRemoteBreak(data.x, data.y, data.z);
+      }
+    }
+  };
 }
+
+connect();
+
+// ===== SAFE SEND =====
+function send(data) {
+  const msg = JSON.stringify(data);
+
+  if (isConnected && socket.readyState === WebSocket.OPEN) {
+    socket.send(msg);
+  } else {
+    messageQueue.push(msg);
+  }
+}
+
+// expose global
+window.net = {
+  send
+};
