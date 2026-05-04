@@ -1,31 +1,51 @@
-const keys = {};
-const speed = 0.2;
+let velocity = new THREE.Vector3();
+let direction = new THREE.Vector3();
 
-window.addEventListener("keydown", e => keys[e.key] = true);
-window.addEventListener("keyup", e => keys[e.key] = false);
+const speed = 5;
+const gravity = 20;
 
-function playerUpdate() {
-  const cam = window.camera;
-  if (!cam) return;
+let player = {
+    onGround: false
+};
 
-  if (keys["w"]) cam.position.z -= speed;
-  if (keys["s"]) cam.position.z += speed;
-  if (keys["a"]) cam.position.x -= speed;
-  if (keys["d"]) cam.position.x += speed;
+function updatePlayer(camera, delta) {
+    if (!camera) return;
+
+    // WASD movement
+    direction.set(0, 0, 0);
+
+    if (keys["w"]) direction.z -= 1;
+    if (keys["s"]) direction.z += 1;
+    if (keys["a"]) direction.x -= 1;
+    if (keys["d"]) direction.x += 1;
+
+    direction.normalize();
+
+    const forward = new THREE.Vector3();
+    camera.getWorldDirection(forward);
+
+    const right = new THREE.Vector3();
+    right.crossVectors(camera.up, forward).normalize();
+
+    let move = new THREE.Vector3();
+    move.addScaledVector(forward, direction.z);
+    move.addScaledVector(right, direction.x);
+
+    camera.position.addScaledVector(move, speed * delta);
+
+    // Gravity
+    velocity.y -= gravity * delta;
+    camera.position.y += velocity.y * delta;
+
+    if (camera.position.y < 2) {
+        camera.position.y = 2;
+        velocity.y = 0;
+        player.onGround = true;
+    }
+
+    // Jump
+    if (keys[" "] && player.onGround) {
+        velocity.y = 8;
+        player.onGround = false;
+    }
 }
-
-window.playerUpdate = playerUpdate;
-
-// ===== BREAK BLOCK =====
-window.addEventListener("mousedown", () => {
-  const cam = window.camera;
-  if (!cam) return;
-
-  const x = Math.floor(cam.position.x);
-  const y = Math.floor(cam.position.y - 1);
-  const z = Math.floor(cam.position.z);
-
-  if (window.world) {
-    world.breakBlock(x, y, z);
-  }
-});
