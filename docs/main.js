@@ -1,16 +1,22 @@
+// GLOBAL (tránh trùng biến)
+window.game = {};
+
 // ===== SCENE =====
 const scene = new THREE.Scene();
+window.scene = scene;
+
 scene.background = new THREE.Color(0x87ceeb);
 
-// ===== CAMERA =====
+// ===== CAMERA (GLOBAL) =====
 const camera = new THREE.PerspectiveCamera(
   75,
   window.innerWidth / window.innerHeight,
   0.1,
   1000
 );
+window.camera = camera;
 
-// ===== RENDERER (ONLY ONE) =====
+// ===== RENDERER =====
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
@@ -20,17 +26,20 @@ const light = new THREE.DirectionalLight(0xffffff, 1);
 light.position.set(50, 100, 50);
 scene.add(light);
 
-// ===== PLAYER INIT =====
+// ===== START POS =====
 camera.position.set(0, 20, 0);
 
-// ===== FPS =====
-let fps = 0, frames = 0, last = performance.now();
+// ===== FPS (ONLY HERE) =====
+let fps = 0;
+let frames = 0;
+let last = performance.now();
 
 // ===== LOOP =====
 function animate() {
   requestAnimationFrame(animate);
 
-  // Update world
+  if (window.playerUpdate) playerUpdate();
+
   world.updateWorld(camera.position);
 
   // FPS
@@ -40,7 +49,9 @@ function animate() {
     fps = frames;
     frames = 0;
     last = now;
-    document.getElementById("fps").innerText = "FPS: " + fps;
+
+    const el = document.getElementById("fps");
+    if (el) el.innerText = "FPS: " + fps;
   }
 
   renderer.render(scene, camera);
