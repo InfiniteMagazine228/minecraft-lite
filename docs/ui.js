@@ -1,14 +1,37 @@
-let fps=0,frames=0,last=performance.now();
+// ===== FPS UI =====
+const fpsDiv = document.createElement("div");
+fpsDiv.id = "fps";
+fpsDiv.style.position = "fixed";
+fpsDiv.style.top = "10px";
+fpsDiv.style.left = "10px";
+fpsDiv.style.color = "white";
+fpsDiv.style.fontFamily = "monospace";
+document.body.appendChild(fpsDiv);
 
-function updateFPS(){
-    frames++;
-    let now = performance.now();
+// ===== INVENTORY =====
+const inventory = document.createElement("div");
+inventory.style.position = "fixed";
+inventory.style.bottom = "10px";
+inventory.style.left = "50%";
+inventory.style.transform = "translateX(-50%)";
+inventory.style.display = "flex";
+inventory.style.gap = "5px";
 
-    if(now-last>=1000){
-        fps=frames;
-        frames=0;
-        last=now;
+document.body.appendChild(inventory);
 
-        document.getElementById("fps").innerText="FPS: "+fps;
-    }
-}
+const blocks = ["GRASS", "DIRT", "STONE"];
+
+blocks.forEach(b => {
+  const slot = document.createElement("div");
+  slot.innerText = b;
+  slot.style.padding = "10px";
+  slot.style.background = "#333";
+  slot.style.color = "white";
+  slot.style.cursor = "pointer";
+
+  slot.onclick = () => {
+    window.selectedBlock = b;
+  };
+
+  inventory.appendChild(slot);
+});
