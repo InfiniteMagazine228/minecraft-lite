@@ -1,67 +1,73 @@
-// GLOBAL (tránh trùng biến)
-window.game = {};
+// ===== ANTI LOAD 2 LẦN =====
+if (window.__game_init__) {
+  console.warn("Game already initialized");
+} else {
+  window.__game_init__ = true;
 
-// ===== SCENE =====
-const scene = new THREE.Scene();
-window.scene = scene;
+  // ===== GLOBAL =====
+  window.game = {};
+  window.scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x87ceeb);
 
-scene.background = new THREE.Color(0x87ceeb);
+  window.camera = new THREE.PerspectiveCamera(
+    75,
+    window.innerWidth / window.innerHeight,
+    0.1,
+    1000
+  );
 
-// ===== CAMERA (GLOBAL) =====
-const camera = new THREE.PerspectiveCamera(
-  75,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  1000
-);
-window.camera = camera;
+  camera.position.set(0, 20, 0);
 
-// ===== RENDERER =====
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
+  window.renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
 
-// ===== LIGHT =====
-const light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(50, 100, 50);
-scene.add(light);
+  const light = new THREE.DirectionalLight(0xffffff, 1);
+  light.position.set(50, 100, 50);
+  scene.add(light);
 
-// ===== START POS =====
-camera.position.set(0, 20, 0);
+  // ===== FPS SAFE =====
+  window.fpsData = {
+    fps: 0,
+    frames: 0,
+    last: performance.now()
+  };
 
-// ===== FPS (ONLY HERE) =====
-let fps = 0;
-let frames = 0;
-let last = performance.now();
+  function updateFPS() {
+    const f = window.fpsData;
+    f.frames++;
 
-// ===== LOOP =====
-function animate() {
-  requestAnimationFrame(animate);
+    const now = performance.now();
+    if (now - f.last >= 1000) {
+      f.fps = f.frames;
+      f.frames = 0;
+      f.last = now;
 
-  if (window.playerUpdate) playerUpdate();
-
-  world.updateWorld(camera.position);
-
-  // FPS
-  frames++;
-  const now = performance.now();
-  if (now - last >= 1000) {
-    fps = frames;
-    frames = 0;
-    last = now;
-
-    const el = document.getElementById("fps");
-    if (el) el.innerText = "FPS: " + fps;
+      const el = document.getElementById("fps");
+      if (el) el.innerText = "FPS: " + f.fps;
+    }
   }
 
-  renderer.render(scene, camera);
+  // ===== LOOP =====
+  function animate() {
+    requestAnimationFrame(animate);
+
+    if (window.playerUpdate) window.playerUpdate();
+
+    if (window.world && window.camera) {
+      world.updateWorld(camera.position);
+    }
+
+    updateFPS();
+    renderer.render(scene, camera);
+  }
+
+  animate();
+
+  // ===== RESIZE =====
+  window.addEventListener("resize", () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
 }
-
-animate();
-
-// ===== RESIZE =====
-window.addEventListener("resize", () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
