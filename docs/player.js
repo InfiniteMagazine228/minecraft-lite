@@ -4,21 +4,27 @@ const keys = {};
 window.addEventListener("keydown", e => keys[e.key] = true);
 window.addEventListener("keyup", e => keys[e.key] = false);
 
-// ===== MOVE =====
-function updatePlayer() {
-  if (keys["w"]) camera.position.z -= speed;
-  if (keys["s"]) camera.position.z += speed;
-  if (keys["a"]) camera.position.x -= speed;
-  if (keys["d"]) camera.position.x += speed;
+// ===== PLAYER UPDATE =====
+function playerUpdate() {
+  const cam = window.camera;
+  if (!cam) return;
+
+  if (keys["w"]) cam.position.z -= speed;
+  if (keys["s"]) cam.position.z += speed;
+  if (keys["a"]) cam.position.x -= speed;
+  if (keys["d"]) cam.position.x += speed;
 }
 
-setInterval(updatePlayer, 16);
+window.playerUpdate = playerUpdate;
 
 // ===== BREAK BLOCK =====
 window.addEventListener("mousedown", () => {
-  const x = Math.floor(camera.position.x);
-  const y = Math.floor(camera.position.y - 1);
-  const z = Math.floor(camera.position.z);
+  const cam = window.camera;
+  if (!cam) return;
+
+  const x = Math.floor(cam.position.x);
+  const y = Math.floor(cam.position.y - 1);
+  const z = Math.floor(cam.position.z);
 
   world.breakBlock(x, y, z);
 });
