@@ -1,21 +1,15 @@
-let socket;
-
 try {
-  socket = new WebSocket("ws://localhost:3000");
-
-  socket.onopen = () => console.log("Connected to server");
+  const socket = new WebSocket("ws://localhost:3000");
 
   socket.onmessage = (e) => {
     const msg = JSON.parse(e.data);
-    world.applyNetworkUpdate(msg);
+    if (window.world) {
+      world.applyNetworkUpdate(msg);
+    }
   };
 
-  socket.onerror = () => {
-    console.log("Offline mode");
-  };
+  window.socket = socket;
 
-} catch (e) {
-  console.log("No multiplayer");
+} catch {
+  console.log("Offline mode");
 }
-
-window.socket = socket;
