@@ -1,18 +1,28 @@
-let ws;
-let players = {};
+let socket;
 
-function initNetwork(enable){
-  if(!enable) return;
+function connect(){
+    try{
+        socket = new WebSocket("ws://localhost:3000");
 
-  ws = new WebSocket("ws://localhost:3000");
+        socket.onmessage = e=>{
+            let msg = JSON.parse(e.data);
 
-  ws.onmessage = e=>{
-    players = JSON.parse(e.data);
-  };
+            if(msg.type==="player"){
+                // demo only
+            }
+        };
+    }catch(e){
+        console.log("No server → Singleplayer");
+    }
 }
 
-function updateNetwork(camera){
-  if(ws && ws.readyState===1){
-    ws.send(JSON.stringify(camera.position));
-  }
+function sendPlayer(){
+    if(!socket) return;
+
+    socket.send(JSON.stringify({
+        type:"player",
+        x:player.x,
+        y:player.y,
+        z:player.z
+    }));
 }
