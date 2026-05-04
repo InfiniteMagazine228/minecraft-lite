@@ -1,28 +1,21 @@
 let socket;
 
-function connect(){
-    try{
-        socket = new WebSocket("ws://localhost:3000");
+try {
+  socket = new WebSocket("ws://localhost:3000");
 
-        socket.onmessage = e=>{
-            let msg = JSON.parse(e.data);
+  socket.onopen = () => console.log("Connected to server");
 
-            if(msg.type==="player"){
-                // demo only
-            }
-        };
-    }catch(e){
-        console.log("No server → Singleplayer");
-    }
+  socket.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    world.applyNetworkUpdate(msg);
+  };
+
+  socket.onerror = () => {
+    console.log("Offline mode");
+  };
+
+} catch (e) {
+  console.log("No multiplayer");
 }
 
-function sendPlayer(){
-    if(!socket) return;
-
-    socket.send(JSON.stringify({
-        type:"player",
-        x:player.x,
-        y:player.y,
-        z:player.z
-    }));
-}
+window.socket = socket;
