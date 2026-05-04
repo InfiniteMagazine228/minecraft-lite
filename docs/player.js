@@ -1,10 +1,9 @@
-const speed = 0.2;
 const keys = {};
+const speed = 0.2;
 
 window.addEventListener("keydown", e => keys[e.key] = true);
 window.addEventListener("keyup", e => keys[e.key] = false);
 
-// ===== PLAYER UPDATE =====
 function playerUpdate() {
   const cam = window.camera;
   if (!cam) return;
@@ -26,5 +25,7 @@ window.addEventListener("mousedown", () => {
   const y = Math.floor(cam.position.y - 1);
   const z = Math.floor(cam.position.z);
 
-  world.breakBlock(x, y, z);
+  if (window.world) {
+    world.breakBlock(x, y, z);
+  }
 });
