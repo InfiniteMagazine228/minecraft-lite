@@ -1,41 +1,56 @@
-let scene,camera,renderer;
+// ===== SCENE =====
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);
 
-function init(){
-    scene = new THREE.Scene();
+// ===== CAMERA =====
+const camera = new THREE.PerspectiveCamera(
+  75,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  1000
+);
 
-    camera = new THREE.PerspectiveCamera(
-        75,
-        window.innerWidth/window.innerHeight,
-        0.1,
-        1000
-    );
+// ===== RENDERER (ONLY ONE) =====
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
 
-    renderer = new THREE.WebGLRenderer({
-        antialias:false,
-        powerPreference:"high-performance"
-    });
+// ===== LIGHT =====
+const light = new THREE.DirectionalLight(0xffffff, 1);
+light.position.set(50, 100, 50);
+scene.add(light);
 
-    renderer.setSize(window.innerWidth,window.innerHeight);
-    document.body.appendChild(renderer.domElement);
+// ===== PLAYER INIT =====
+camera.position.set(0, 20, 0);
 
-    connect();
-}
+// ===== FPS =====
+let fps = 0, frames = 0, last = performance.now();
 
-let last = performance.now();
+// ===== LOOP =====
+function animate() {
+  requestAnimationFrame(animate);
 
-function animate(){
-    let now = performance.now();
-    let dt = (now-last)/1000;
+  // Update world
+  world.updateWorld(camera.position);
+
+  // FPS
+  frames++;
+  const now = performance.now();
+  if (now - last >= 1000) {
+    fps = frames;
+    frames = 0;
     last = now;
+    document.getElementById("fps").innerText = "FPS: " + fps;
+  }
 
-    updatePlayer(dt);
-    updateWorld(player);
-    sendPlayer();
-    updateFPS();
-
-    renderer.render(scene,camera);
-    requestAnimationFrame(animate);
+  renderer.render(scene, camera);
 }
 
-init();
 animate();
+
+// ===== RESIZE =====
+window.addEventListener("resize", () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
