@@ -4,7 +4,7 @@ let messageQueue = [];
 
 // ===== CONNECT =====
 function connect() {
-  socket = new WebSocket("ws://localhost:3000");
+  socket = const socket = new WebSocket("wss://minecraft-lite-1.onrender.com");
 
   socket.onopen = () => {
     console.log("✅ Connected to server");
