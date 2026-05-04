@@ -5,10 +5,26 @@
 <title>Minecraft Lite</title>
 <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
+
+<div id="menu">
+  <h1>Minecraft Lite</h1>
+  <button onclick="startSingle()">Singleplayer</button>
+  <button onclick="startMulti()">Multiplayer</button>
+</div>
+
 <div id="crosshair"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.158/build/three.min.js"></script>
-<script src="game.js"></script>
+
+<!-- LOAD ĐÚNG THỨ TỰ -->
+<script src="noise.js"></script>
+<script src="world.js"></script>
+<script src="player.js"></script>
+<script src="network.js"></script>
+<script src="ui.js"></script>
+<script src="main.js"></script>
+
 </body>
 </html>
