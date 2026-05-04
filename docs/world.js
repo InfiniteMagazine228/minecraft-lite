@@ -1,60 +1,178 @@
 const CHUNK_SIZE = 16;
-const HEIGHT = 32;
-const DIST = 4;
+const WORLD_HEIGHT = 32;
+const chunks = new Map();
 
-let chunks = new Map();
-let queue = [];
+const BLOCK = {
+  AIR: 0,
+  GRASS: 1,
+  DIRT: 2,
+  STONE: 3
+};
 
-function key(x,z){ return x+","+z; }
-
-function getHeight(x,z){
-    return Math.floor((noise.simplex2(x/20,z/20)+1)*5+5);
+// ===== NOISE SAFE =====
+function getNoise(x, z) {
+  if (!window.noise) return 0;
+  return noise.noise2D(x * 0.05, z * 0.05);
 }
 
-function gen(cx,cz){
-    const geo = new THREE.BoxGeometry(1,1,1);
-    const mat = new THREE.MeshBasicMaterial({color:0x55aa55});
-    const mesh = new THREE.InstancedMesh(geo,mat,2000);
-
-    let i=0;
-    const m = new THREE.Matrix4();
-
-    for(let x=0;x<CHUNK_SIZE;x++){
-        for(let z=0;z<CHUNK_SIZE;z++){
-            let h = getHeight(cx*16+x,cz*16+z);
-
-            for(let y=0;y<h;y++){
-                m.setPosition(cx*16+x,y,cz*16+z);
-                mesh.setMatrixAt(i++,m);
-            }
-        }
-    }
-
-    mesh.count = i;
-    scene.add(mesh);
-
-    return mesh;
+// ===== TERRAIN =====
+function getHeight(x, z) {
+  return Math.floor((getNoise(x, z) + 1) * 10 + 5);
 }
 
-function updateWorld(player){
-    let cx = Math.floor(player.x/CHUNK_SIZE);
-    let cz = Math.floor(player.z/CHUNK_SIZE);
+function getBlock(x, y, z) {
+  const h = getHeight(x, z);
 
-    for(let x=-DIST;x<=DIST;x++){
-        for(let z=-DIST;z<=DIST;z++){
-            let k = key(cx+x,cz+z);
-
-            if(!chunks.has(k)){
-                chunks.set(k,"loading");
-                queue.push({x:cx+x,z:cz+z});
-            }
-        }
-    }
-
-    for(let i=0;i<2;i++){
-        let job = queue.shift();
-        if(!job) break;
-
-        chunks.set(key(job.x,job.z), gen(job.x,job.z));
-    }
+  if (y > h) return BLOCK.AIR;
+  if (y === h) return BLOCK.GRASS;
+  if (y > h - 3) return BLOCK.DIRT;
+  return BLOCK.STONE;
 }
+
+// ===== CHUNK DATA =====
+function generateChunkData(cx, cz) {
+  const data = new Uint8Array(CHUNK_SIZE * WORLD_HEIGHT * CHUNK_SIZE);
+
+  let i = 0;
+  for (let x = 0; x < CHUNK_SIZE; x++) {
+    for (let z = 0; z < CHUNK_SIZE; z++) {
+      for (let y = 0; y < WORLD_HEIGHT; y++) {
+        data[i++] = getBlock(
+          cx * CHUNK_SIZE + x,
+          y,
+          cz * CHUNK_SIZE + z
+        );
+      }
+    }
+  }
+  return data;
+}
+
+// ===== GREEDY MESHING =====
+function buildMesh(data, cx, cz) {
+  const geo = new THREE.BufferGeometry();
+  const vertices = [];
+  const indices = [];
+
+  let index = 0;
+
+  function pushFace(x, y, z) {
+    const size = 1;
+
+    vertices.push(
+      x, y, z,
+      x+size, y, z,
+      x+size, y+size, z,
+      x, y+size, z
+    );
+
+    indices.push(
+      index, index+1, index+2,
+      index, index+2, index+3
+    );
+
+    index += 4;
+  }
+
+  let i = 0;
+  for (let x = 0; x < CHUNK_SIZE; x++) {
+    for (let z = 0; z < CHUNK_SIZE; z++) {
+      for (let y = 0; y < WORLD_HEIGHT; y++) {
+
+        const block = data[i++];
+        if (block === BLOCK.AIR) continue;
+
+        pushFace(
+          cx * CHUNK_SIZE + x,
+          y,
+          cz * CHUNK_SIZE + z
+        );
+      }
+    }
+  }
+
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+
+  const mat = new THREE.MeshStandardMaterial({ color: 0x88cc88 });
+  return new THREE.Mesh(geo, mat);
+}
+
+// ===== CREATE CHUNK =====
+function createChunk(cx, cz) {
+  const key = cx + "," + cz;
+  if (chunks.has(key)) return;
+
+  const data = generateChunkData(cx, cz);
+  const mesh = buildMesh(data, cx, cz);
+
+  scene.add(mesh);
+
+  chunks.set(key, {
+    data,
+    mesh,
+    cx,
+    cz
+  });
+}
+
+// ===== WORLD UPDATE =====
+function updateWorld(player) {
+  const cx = Math.floor(player.x / CHUNK_SIZE);
+  const cz = Math.floor(player.z / CHUNK_SIZE);
+
+  const RENDER_DIST = 2;
+
+  for (let x = -RENDER_DIST; x <= RENDER_DIST; x++) {
+    for (let z = -RENDER_DIST; z <= RENDER_DIST; z++) {
+      createChunk(cx + x, cz + z);
+    }
+  }
+}
+
+// ===== BREAK BLOCK =====
+function breakBlock(x, y, z) {
+  const cx = Math.floor(x / CHUNK_SIZE);
+  const cz = Math.floor(z / CHUNK_SIZE);
+  const key = cx + "," + cz;
+
+  const chunk = chunks.get(key);
+  if (!chunk) return;
+
+  const lx = x % CHUNK_SIZE;
+  const lz = z % CHUNK_SIZE;
+
+  const index =
+    lx * CHUNK_SIZE * WORLD_HEIGHT +
+    lz * WORLD_HEIGHT +
+    y;
+
+  chunk.data[index] = BLOCK.AIR;
+
+  scene.remove(chunk.mesh);
+  chunk.mesh = buildMesh(chunk.data, cx, cz);
+  scene.add(chunk.mesh);
+
+  // ===== MULTIPLAYER SYNC =====
+  if (window.socket) {
+    socket.send(JSON.stringify({
+      type: "break",
+      x, y, z
+    }));
+  }
+}
+
+// ===== MULTIPLAYER RECEIVE =====
+function applyNetworkUpdate(msg) {
+  if (msg.type === "break") {
+    breakBlock(msg.x, msg.y, msg.z);
+  }
+}
+
+// EXPORT
+window.world = {
+  updateWorld,
+  breakBlock,
+  applyNetworkUpdate
+};
